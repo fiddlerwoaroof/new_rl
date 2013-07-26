@@ -1,6 +1,7 @@
 import numpy as np
 import libtcodpy as tc
 import yaml
+import libs.bresenham
 
 def squeeze(val, low, high):
 	return min(max(val, low), high)
@@ -45,12 +46,25 @@ class Map(object):
 
 	def move(self, object, dx,dy):
 		print self.overlays,
-		self.overlays[object.pos].remove(object)
-		ox,oy = object.pos
-		x = squeeze(ox+dx, 0, self.width-1)
-		y = squeeze(oy+dy, 0, self.height-1)
-		self.overlays.setdefault((x,y), []).append(object)
-		self.update_overlay(ox,oy)
+		if abs(dx) < 2 and abs(dy) < 2:
+			self.overlays[object.pos].remove(object)
+			ox,oy = object.pos
+			x = squeeze(ox+dx, 0, self.width-1)
+			y = squeeze(oy+dy, 0, self.height-1)
+			if not self.fov.is_passable((x,y)):
+				x,y = ox,oy
+
+			self.overlays.setdefault((x,y), []).append(object)
+			self.update_overlay(ox,oy)
+		else:
+			ox,oy = object.pos
+			tx,ty = ox+dx, oy+dy
+			gx,gy = ox,oy
+			for x,y in libs.bresenham.line(ox,oy, tx,ty):
+				if not self.fov.is_passable((x,y)): break
+				else: gx,gy = x,y
+			x,y = gx,gy
+
 		return x-ox, y-oy
 
 	def update_overlay(self, x=None, y=None):

@@ -14,14 +14,15 @@ class EventHandler(object):
 			self.key, self.mouse
 		)
 
+		alt, shift, ctrl = self.key.lalt|self.key.ralt, self.key.shift, self.key.lctrl|self.key.rctrl
 		char = chr(self.key.c)
 		if char != '\x00' and char in self.cbs:
 			for cb in self.cbs[char]:
-				cb()
+				cb(alt,shift,ctrl)
 
 		elif self.key.vk in self.cbs:
 			for cb in self.cbs[self.key.vk]:
-				cb()
+				cb(alt,shift,ctrl)
 
 
 
