@@ -6,6 +6,7 @@ from src import player
 from src import console
 from src import map
 
+import random
 
 
 class Application(object):
@@ -17,6 +18,9 @@ class Application(object):
 		self.player = player.Player(4,5, self.map)
 		self.events = events.EventHandler()
 		player.ArrowHandler(self.player, self.events)
+
+
+
 
 		tc.sys_set_fps(60)
 

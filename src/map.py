@@ -2,6 +2,7 @@ import numpy as np
 import libtcodpy as tc
 import yaml
 import libs.bresenham
+import libs.cache
 
 def squeeze(val, low, high):
 	return min(max(val, low), high)
@@ -14,9 +15,7 @@ class TerrainGen(object):
 	def generate(self):
 		w,h = self.width, self.height
 		terrains, probs = self.terrain_registry.get_terrain_types()
-		print terrains, probs
 		map = np.random.choice(terrains, (w,h), p=probs)
-		print map[map>4]
 		chars = np.zeros((w,h)).astype('int')
 		fgcolors = np.zeros((w,h,3))
 		bgcolors = np.zeros((w,h,3))
@@ -33,6 +32,8 @@ class TerrainGen(object):
 class Map(object):
 	def __init__(self, w, h, terrain_registry):
 		self.pov = None
+		self.povcache = libs.cache.Cache()
+
 		self.width = w
 		self.height = h
 		self.terrain_registry = terrain_registry
@@ -46,7 +47,6 @@ class Map(object):
 		self.overlays.setdefault(object.pos,[]).append(object)
 
 	def move(self, object, dx,dy):
-		print self.overlays,
 		self.overlays[object.pos].remove(object)
 
 		if abs(dx) < 2 and abs(dy) < 2:
@@ -75,28 +75,45 @@ class Map(object):
 			if (x,y) in self.overlays and self.overlays[x,y] == []:
 				self.overlays.pop((x,y))
 
-	def get_rgb(self, fg=True,slices=(slice(0),slice(0))):
-		if fg:
-			result = np.rollaxis(self.fgcolors[slices], 2)
-		else:
-			result = np.rollaxis(self.bgcolors[slices], 2)
+	def get_rgb(self, colors, fg=True,slices=(slice(0),slice(0))):
+		result = np.rollaxis(colors[slices], 2)
 		return [x.transpose() for x in result]
 
 	def draw(self, con, tl=(0,0)):
 		br = tl[0]+con.width, tl[1]+con.height
+
+		fgcolors = self.fgcolors.astype('int')
+		bgcolors = self.bgcolors.astype('int')
+		color_mask = np.ones( (con.width, con.height, 3) )
+		char_mask = np.ones( (con.width, con.height) ).astype('bool')
+		if self.pov is not None:
+			origin, radius = self.pov
+			def calc_mask():
+				for x in range(tl[0], br[0]):
+					for y in range(tl[1], br[1]):
+						if not self.fov.is_visible(origin, radius, (x,y)):
+							color_mask[x,y] = (0.25, 0.5, 0.5)
+							char_mask[x,y] = False
+				return color_mask, char_mask
+			color_mask, char_mask = self.povcache.get( (origin,radius), calc_mask )
+			fgcolors = (fgcolors * color_mask).astype('int')
+			bgcolors = (bgcolors * color_mask).astype('int')
+
 		slices = slice(tl[0], tl[0]+con.width), slice(tl[1], tl[1]+con.height)
-		tc.console_fill_foreground(con.con, *self.get_rgb(slices=slices))
-		tc.console_fill_background(con.con, *self.get_rgb(False,slices=slices))
+		tc.console_fill_foreground(con.con, *self.get_rgb(fgcolors, slices=slices))
+		tc.console_fill_background(con.con, *self.get_rgb(bgcolors, False,slices=slices))
 
 		chars = np.copy(self.map[slices])
 		for x,y in self.overlays:
 			screen_x = x-tl[0]
 			screen_y = y-tl[1]
+			if not char_mask[screen_x,screen_y]: continue
 			if 0 <= screen_x < con.width and 0 <= screen_y < con.height:
 				obj = self.overlays[x,y][-1]
 				chars[screen_x,screen_y] = obj.char
-				tc.console_set_char_foreground(con.con, screen_x,screen_y, tc.black)
-				tc.console_set_char_background(con.con, screen_x,screen_y, tc.white)
+				tc.console_set_char_background(con.con, screen_x,screen_y, tc.Color(*bgcolors[screen_x,screen_y]))
+				tc.console_set_char_foreground(con.con, screen_x,screen_y, tc.Color(*obj.color))
+		chars[np.logical_not(char_mask)] = ord(' ')
 		tc.console_fill_char(con.con, chars.transpose())
 
 	def coord_iter(self):
@@ -110,6 +127,8 @@ class Map(object):
 class FovCache(object):
 	# TODO: get allow updates to base_map
 	def __init__(self, map, terrain_registry):
+		self.width, self.height = map.dim
+
 		self.base_map = tc.map_new(*map.dim)
 
 		for x,y in map.coord_iter():
@@ -122,7 +141,7 @@ class FovCache(object):
 
 		self.fovmaps = {}
 
-	def get_fovmap(self, terrain_registry, origin, radius):
+	def get_fovmap(self, origin, radius):
 		key = origin,radius
 
 		if key in self.fovmaps: fovmap = self.fovmaps[key]
@@ -135,6 +154,10 @@ class FovCache(object):
 			tc.map_compute_fov(fovmap, x,y, radius)
 
 		return fovmap
+
+	def is_visible(self, origin, radius, coord):
+		fovmap = self.get_fovmap(origin, radius)
+		return tc.map_is_in_fov(fovmap, *coord)
 
 	def is_transparent(self, coord):
 		return tc.map_is_transparent(self.base_map, *coord)
@@ -190,7 +213,6 @@ class TerrainRegistry(object):
 	def new_terrain(self, name, char,
 		passable=False, transparent=False, fg=(255,255,255), bg=(0,0,0), prob=1
 	):
-		print 'prob: %f' % prob
 		ter = TerrainInfo.make_terrain(name, char, passable, transparent, fg,bg, prob=prob)
 		return self.register(ter)
 
