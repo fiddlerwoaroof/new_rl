@@ -1,21 +1,44 @@
 import numpy as np
 import libtcodpy as tc
+import yaml
 
 def squeeze(val, low, high):
 	return min(max(val, low), high)
 
+class TerrainGen(object):
+	def __init__(self, map):
+		self.width, self.height = map.dim
+		self.terrain_registry = map.terrain_registry
+
+	def generate(self):
+		w,h = self.width, self.height
+		map = np.random.choice(self.terrain_registry.get_terrain_types(), (w,h))
+		print self.terrain_registry.get_terrain_types()
+		print map[map>4]
+		chars = np.zeros((w,h)).astype('int')
+		fgcolors = np.zeros((w,h,3))
+		bgcolors = np.zeros((w,h,3))
+
+		for x, row in enumerate(map):
+			for y, cell in enumerate(row):
+				char, bgcolor, fgcolor = self.terrain_registry.get_display(cell)
+				chars[x,y] = char
+				fgcolors[x,y] = fgcolor
+				bgcolors[x,y] = bgcolor
+		return map, chars, fgcolors, bgcolors
+
+
 class Map(object):
-	def __init__(self, w, h):
+	def __init__(self, w, h, terrain_registry):
+		self.pov = None
 		self.width = w
 		self.height = h
-		self.map = np.random.random_integers(ord('a'), ord('z'), (w,h) )
-		self.map[3,5] = ord('*')
-		self.map[::10, ::10] = ord('#')
-		self.fgcolors = np.random.random_integers(100,255, (w,h,3) )
-		self.fgcolors[::10,::10] = (0,0,0)
-		self.bgcolors = np.random.random_integers(0,100, (w,h,3) )
-		self.bgcolors[::10,::10] = (255,255,255)
+		self.terrain_registry = terrain_registry
 		self.overlays = {} # (x,y): { set( object, ... ) }
+
+		self.ids, self.map, self.fgcolors, self.bgcolors = TerrainGen(self).generate()
+
+		self.fov = FovCache(self, self.terrain_registry)
 
 	def add(self, object):
 		self.overlays.setdefault(object.pos,[]).append(object)
@@ -59,3 +82,102 @@ class Map(object):
 				tc.console_set_char_foreground(con.con, screen_x,screen_y, tc.black)
 				tc.console_set_char_background(con.con, screen_x,screen_y, tc.white)
 		tc.console_fill_char(con.con, chars.transpose())
+
+	def coord_iter(self):
+		return ( (x,y) for x in range(self.width) for y in range(self.height) )
+
+	@property
+	def dim(self):
+		return self.width, self.height
+
+
+class FovCache(object):
+	# TODO: get allow updates to base_map
+	def __init__(self, map, terrain_registry):
+		self.base_map = tc.map_new(*map.dim)
+
+		for x,y in map.coord_iter():
+			if (x,y) in map.overlays:
+				object = map.overlays[x,y]
+				pssble,trnsprnt = object.passable, object.transparent
+			else:
+				pssble,trnsprnt = terrain_registry.get_props(map.ids[x,y])
+			tc.map_set_properties(self.base_map, x,y, trnsprnt,pssble)
+
+		self.fovmaps = {}
+
+	def get_fovmap(self, terrain_registry, origin, radius):
+		key = origin,radius
+
+		if key in self.fovmaps: fovmap = self.fovmaps[key]
+		else:
+			fovmap = tc.map_new(self.width, self.height)
+			tc.map_copy(self.base_map, fovmap)
+			self.fovmaps[key] = fovmap
+
+			x,y = origin
+			tc.map_compute_fov(fovmap, x,y, radius)
+
+		return fovmap
+
+	def is_transparent(self, coord):
+		return tc.map_is_transparent(self.base_map, *coord)
+	def is_passable(self, coord):
+		return tc.map_is_walkable(self.base_map, *coord)
+
+
+class TerrainInfo(object):
+	passable = False
+	transparent = False
+	char = ord(' ')
+	fg = (255,255,255)
+	bg = (0,0,0)
+
+	@classmethod
+	def make_terrain(cls, name, char, passable, transparent,fg,bg):
+		if hasattr(char, 'upper'): char = ord(char)
+		passable = bool(passable)
+		transparent = bool(transparent)
+		return type(name, (cls,), dict(char=char, passable=passable, transparent=transparent,fg=fg,bg=bg))
+
+class TerrainRegistry(object):
+	def __init__(self):
+		self.id = 0
+		self.registry = {}
+		self.names = {}
+
+	def get_terrain(self, id):
+		ter = self.registry[id]
+		return ter
+
+	def get_props(self, id):
+		ter = self.get_terrain(id)
+		return ter.passable, ter.transparent
+
+	def get_display(self, char):
+		ter = self.get_terrain(char)
+		return ter.char, ter.fg, ter.bg
+
+	def get_terrain_types(self):
+		return list(self.registry)
+
+
+	def register(self, ter):
+		self.id += 1
+		self.registry[self.id] = ter
+		self.names[ter.__name__] = ter
+		return ter
+
+	def new_terrain(self, name, char,
+		passable=False, transparent=False, fg=(255,255,255), bg=(0,0,0)
+	):
+		ter = TerrainInfo.make_terrain(name, char, passable, transparent, fg,bg)
+		return self.register(ter)
+
+	def load_from_file(self, fn, loader=yaml.safe_load):
+		with open(fn) as f:
+			values = loader(f)
+		for name, terrain in values.viewitems():
+			self.new_terrain(name, **terrain)
+
+
