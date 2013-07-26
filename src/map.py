@@ -24,8 +24,8 @@ class Map(object):
 		print self.overlays,
 		self.overlays[object.pos].remove(object)
 		ox,oy = object.pos
-		x = squeeze(ox+dx, 0, self.width)
-		y = squeeze(oy+dy, 0, self.height)
+		x = squeeze(ox+dx, 0, self.width-1)
+		y = squeeze(oy+dy, 0, self.height-1)
 		self.overlays.setdefault((x,y), []).append(object)
 		self.update_overlay(ox,oy)
 		return x-ox, y-oy
