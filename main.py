@@ -10,10 +10,10 @@ from src import map
 
 class Application(object):
 	def __init__(self):
-		self.screen = console.Screen(200,125)
+		self.screen = console.Screen(100,63)
 		self.terrain_registry = map.TerrainRegistry()
 		self.terrain_registry.load_from_file('data/terrain.yml')
-		self.map = map.Map(200,125, self.terrain_registry)
+		self.map = map.Map(100,63, self.terrain_registry)
 		self.player = player.Player(4,5, self.map)
 		self.events = events.EventHandler()
 		player.ArrowHandler(self.player, self.events)

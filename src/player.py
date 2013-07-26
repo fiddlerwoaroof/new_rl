@@ -29,16 +29,32 @@ class ArrowHandler(object):
 		eh.register(tc.KEY_RIGHT,self.right)
 		eh.register(tc.KEY_UP,self.up)
 		eh.register(tc.KEY_DOWN,self.down)
-	def left(self):
+	def left(self, alt, shift, ctrl):
 		print 'left'
-		self.player.move(-1, 0)
-	def right(self):
+		val = 10 if shift else 1
+		if alt:
+			self.player.move(-val, -val)
+		else:
+			self.player.move(-val, 0)
+	def right(self, alt, shift, ctrl):
 		print 'right'
-		self.player.move(1, 0)
-	def up(self):
+		val = 10 if shift else 1
+		if alt:
+			self.player.move(val, val)
+		else:
+			self.player.move(val, 0)
+	def up(self, alt, shift, ctrl):
 		print 'up'
-		self.player.move(0, -1)
-	def down(self):
+		val = 10 if shift else 1
+		if alt:
+			self.player.move(val, -val)
+		else:
+			self.player.move(0, -val)
+	def down(self, alt, shift, ctrl):
 		print 'down'
-		self.player.move(0, 1)
+		val = 10 if shift else 1
+		if alt:
+			self.player.move(-val, val)
+		else:
+			self.player.move(0, val)
 
