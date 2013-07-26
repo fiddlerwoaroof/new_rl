@@ -13,8 +13,9 @@ class TerrainGen(object):
 
 	def generate(self):
 		w,h = self.width, self.height
-		map = np.random.choice(self.terrain_registry.get_terrain_types(), (w,h))
-		print self.terrain_registry.get_terrain_types()
+		terrains, probs = self.terrain_registry.get_terrain_types()
+		print terrains, probs
+		map = np.random.choice(terrains, (w,h), p=probs)
 		print map[map>4]
 		chars = np.zeros((w,h)).astype('int')
 		fgcolors = np.zeros((w,h,3))
@@ -22,7 +23,7 @@ class TerrainGen(object):
 
 		for x, row in enumerate(map):
 			for y, cell in enumerate(row):
-				char, bgcolor, fgcolor = self.terrain_registry.get_display(cell)
+				char, fgcolor, bgcolor = self.terrain_registry.get_display(cell)
 				chars[x,y] = char
 				fgcolors[x,y] = fgcolor
 				bgcolors[x,y] = bgcolor
@@ -147,13 +148,14 @@ class TerrainInfo(object):
 	char = ord(' ')
 	fg = (255,255,255)
 	bg = (0,0,0)
+	prob = 1
 
 	@classmethod
-	def make_terrain(cls, name, char, passable, transparent,fg,bg):
+	def make_terrain(cls, name, char, passable, transparent,fg,bg, prob=1):
 		if hasattr(char, 'upper'): char = ord(char)
 		passable = bool(passable)
 		transparent = bool(transparent)
-		return type(name, (cls,), dict(char=char, passable=passable, transparent=transparent,fg=fg,bg=bg))
+		return type(name, (cls,), dict(char=char, passable=passable, transparent=transparent,fg=fg,bg=bg,prob=prob))
 
 class TerrainRegistry(object):
 	def __init__(self):
@@ -174,7 +176,9 @@ class TerrainRegistry(object):
 		return ter.char, ter.fg, ter.bg
 
 	def get_terrain_types(self):
-		return list(self.registry)
+		types, probabilities = zip(*[(x, self.registry[x].prob) for x in self.registry])
+		probs = [float(x) / sum(probabilities) for x in probabilities]
+		return types, probs
 
 
 	def register(self, ter):
@@ -184,9 +188,10 @@ class TerrainRegistry(object):
 		return ter
 
 	def new_terrain(self, name, char,
-		passable=False, transparent=False, fg=(255,255,255), bg=(0,0,0)
+		passable=False, transparent=False, fg=(255,255,255), bg=(0,0,0), prob=1
 	):
-		ter = TerrainInfo.make_terrain(name, char, passable, transparent, fg,bg)
+		print 'prob: %f' % prob
+		ter = TerrainInfo.make_terrain(name, char, passable, transparent, fg,bg, prob=prob)
 		return self.register(ter)
 
 	def load_from_file(self, fn, loader=yaml.safe_load):
