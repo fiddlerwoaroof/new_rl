@@ -8,6 +8,7 @@ class Player(libs.overlay.Actor):
 	light_radius = 10
 	def __init__(self, x,y, map, adventurer):
 		libs.overlay.Actor.__init__(self, x,y, map, adventurer)
+		print 'Player\'s name is %s' % self.adventurer.name
 		self.map.set_pov((self.pos, self.light_radius))
 	def move(self, dx, dy):
 		libs.overlay.Actor.move(self, dx,dy)

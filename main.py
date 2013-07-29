@@ -1,6 +1,6 @@
 import libs.patch_random
 import random
-random.seed(2)
+#random.seed(2)
 
 import libtcodpy as tc
 import numpy as np
@@ -13,6 +13,7 @@ from src import console
 from src import map
 
 import random
+import bisect
 
 
 class Application(object):
@@ -35,15 +36,25 @@ class Application(object):
 
 		tc.sys_set_fps(60)
 
+	def update_actors(self):
+		to_pop = []
+		for idx,actor in enumerate(self.actors):
+			if not actor.tick():
+				bisect.insort(to_pop, idx)
+		for pop in reversed(to_pop):
+			self.actors.pop(pop)
+
 	def init(self):
 		self.screen.init("test")
 		self.player.draw()
-		for actor in self.actors:
-			actor.draw()
+		self.update_actors()
+		for overlay in self.actors + self.objects:
+			overlay.draw()
 
 	def run(self):
 		while not tc.console_is_window_closed():
 			self.events.tick()
+			self.update_actors()
 			self.map.draw(self.screen)
 			tc.console_print(0, 0,1, '%d' % tc.sys_get_fps())
 			tc.console_flush()

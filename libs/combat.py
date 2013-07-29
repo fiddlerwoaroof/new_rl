@@ -99,7 +99,7 @@ class Adventurer(object):
 		dieroll = dice.DieRoll()
 		dieroll.add_adjustment(-damage)
 
-		result, damage = self.skills.check('toughness', dieroll)
+		result, __ = self.skills.check('toughness', dieroll)
 
 		if not result:
 			if damage > 0:

@@ -15,6 +15,8 @@ class Overlay(object):
 		self.x = x
 		self.y = y
 		self.map = map
+	def draw(self):
+		self.map.add(self)
 
 
 class Actor(Overlay):
@@ -34,17 +36,18 @@ class Actor(Overlay):
 			adventurer = combat.Adventurer.randomize()
 		self.adventurer = adventurer
 
-	def draw(self):
-		self.map.add(self)
-
 	def move(self, dx, dy):
 		dx, dy = self.map.move(self, dx,dy)
 		self.x += dx
 		self.y += dy
 
 	def tick(self):
-		pass
-
+		result = True
+		if self.adventurer.state >= 2:
+			result = False
+			self.char = ord('%')
+			self.blocks = False
+		return result
 
 	def ishostile(self, other):
 		return True #TODO: implement factions
@@ -57,9 +60,7 @@ class Actor(Overlay):
 		other.bumped_by(self)
 
 	def attacked_by(self, other):
-		if self.adventurer.state >= 2:
-			self.char = '%'
-		elif self.adventurer.skills.check('agility'):
+		if self.adventurer.skills.check('agility'):
 			self.adventurer.attack(other.adventurer)
 
 	def bumped_by(self, other):
