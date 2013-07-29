@@ -5,9 +5,10 @@ random.seed(2)
 import libtcodpy as tc
 import numpy as np
 
+from libs import overlay
+from libs import combat
 from src import events
 from src import player
-from libs import actor
 from src import console
 from src import map
 
@@ -20,17 +21,17 @@ class Application(object):
 		self.terrain_registry = map.TerrainRegistry()
 		self.terrain_registry.load_from_file('data/terrain.yml')
 		self.map = map.Map(100,63, self.terrain_registry)
-		self.player = player.Player(4,5, self.map)
+		self.player = player.Player(4,5, self.map, combat.Adventurer.randomize())
 		self.events = events.EventHandler()
 		player.ArrowHandler(self.player, self.events)
 
 		self.actors = []
 		for x in range(40):
-			self.actors.append(actor.Actor(random.randrange(100), random.randrange(63), self.map))
+			self.actors.append(overlay.Actor(random.randrange(100), random.randrange(63), self.map))
 
 		self.objects = []
 		for x in range(50):
-			self.objects.append(
+			self.objects.append(overlay.Potion(random.randrange(100), random.randrange(63), self.map))
 
 		tc.sys_set_fps(60)
 

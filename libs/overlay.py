@@ -1,7 +1,8 @@
 import abc
+from . import combat
 
 class Overlay(object):
-	__metaclass__ = abs.ABCMeta
+	__metaclass__ = abc.ABCMeta
 
 	char = abc.abstractproperty()
 	color = (0,0,0)
@@ -29,6 +30,9 @@ class Actor(Overlay):
 		self.x = x
 		self.y = y
 		self.map = map
+		if adventurer is None:
+			adventurer = combat.Adventurer.randomize()
+		self.adventurer = adventurer
 
 	def draw(self):
 		self.map.add(self)
@@ -42,9 +46,22 @@ class Actor(Overlay):
 		pass
 
 
+	def ishostile(self, other):
+		return True #TODO: implement factions
+
 	def bump(self, other):
 		print '%s bumped %s' % (type(self).__name__, type(other).__name__)
+		if isinstance(other, Actor) and other.ishostile(self):
+			self.adventurer.attack(other.adventurer)
+			other.attacked_by(self)
 		other.bumped_by(self)
+
+	def attacked_by(self, other):
+		if self.adventurer.state >= 2:
+			self.char = '%'
+		elif self.adventurer.skills.check('agility'):
+			self.adventurer.attack(other.adventurer)
+
 	def bumped_by(self, other):
 		print '%s was bumped by %s' % (type(self).__name__, type(other).__name__)
 

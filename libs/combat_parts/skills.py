@@ -25,8 +25,13 @@ class Skills(object):
 		self.training = Trainer(self)
 		self.train = self.training.select
 
-	def check(self, skill, dieroll):
-		dieroll.dice = dice.DieJar().d20
+	def check(self, skill, dieroll=None):
+		die = dice.DieJar().d20
+		if dieroll is None:
+			dieroll = die
+		else:
+			dieroll.dice = dice.DieJar().d20
+
 		roll = dieroll.roll()
 		if roll == 1:
 			result = False

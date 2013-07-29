@@ -8,7 +8,8 @@ class Race(object):
 
 	@classmethod
 	def random_race(cls):
-		return random.choice(self.registry.values())
+		return random.choice(cls.registry.keys())
+
 	@property
 	def name(self):
 		return self.__class__.__name__.lower()
@@ -34,13 +35,13 @@ class Elf(Race):
 @Race.register
 class Dwarf(Race):
 	allowed_professions = {'fighter', 'Priest', 'thief'}
-	def mod(self, atr):
+	def mod(self, attr):
 		attr.str += 1
 
 @Race.register
 class Hobbit(Race):
 	allowed_professions = {'thief', 'barbarian'}
-	def mod(self, atr):
+	def mod(self, attr):
 		attr.dex += 1
 
 
