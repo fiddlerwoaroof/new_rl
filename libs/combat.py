@@ -44,8 +44,8 @@ class Adventurer(object):
 		return self.attributes.state
 	@state.setter
 	def state(self, val):
-		if val not in {const.HEALTHY, const.WOUNDED, const.KNOCKOUT}:
-			raise ValueError('Value for state invalid')
+		if val < 0: val == 0
+		if val > const.KNOCKOUT: val = const.KNOCKOUT
 		self.attributes.state = val
 
 	@classmethod
