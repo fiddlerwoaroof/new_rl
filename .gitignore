@@ -33,3 +33,10 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# ignore the symlinks here
+*.so
+*.png
+
+# ignore experiments
+*_test*.py
