@@ -46,14 +46,22 @@ class Map(object):
 	def add(self, object):
 		self.overlays.setdefault(object.pos,[]).append(object)
 
+	def check_and_execute_bump(self, object, x,y):
+		if (x,y) in self.overlays:
+			for other in self.overlays[x,y]:
+				object.bump(other)
+
 	def move(self, object, dx,dy):
 		self.overlays[object.pos].remove(object)
+
+		collide_x, collide_y = None, None
 
 		if abs(dx) < 2 and abs(dy) < 2:
 			ox,oy = object.pos
 			x = squeeze(ox+dx, 0, self.width-1)
 			y = squeeze(oy+dy, 0, self.height-1)
 			if not self.is_passable((x,y)):
+				collide_x, collide_y = x,y
 				x,y = ox,oy
 
 		else:
@@ -61,9 +69,14 @@ class Map(object):
 			tx,ty = ox+dx, oy+dy
 			gx,gy = ox,oy
 			for x,y in libs.bresenham.line(ox,oy, tx,ty, 1):
-				if not self.is_passable((x,y)): break
+				if not self.is_passable((x,y)):
+					collide_x, collide_y = x,y
+					break
 				else: gx,gy = x,y
 			x,y = gx,gy
+
+		if collide_x is not None:
+			self.check_and_execute_bump(object, collide_x, collide_y)
 
 		self.overlays.setdefault((x,y), []).append(object)
 		self.update_overlay(ox,oy)

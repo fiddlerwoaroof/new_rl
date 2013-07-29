@@ -7,6 +7,7 @@ import numpy as np
 
 from src import events
 from src import player
+from libs import actor
 from src import console
 from src import map
 
@@ -25,7 +26,11 @@ class Application(object):
 
 		self.actors = []
 		for x in range(40):
-			self.actors.append(player.Actor(random.randrange(100), random.randrange(63), self.map))
+			self.actors.append(actor.Actor(random.randrange(100), random.randrange(63), self.map))
+
+		self.objects = []
+		for x in range(50):
+			self.objects.append(
 
 		tc.sys_set_fps(60)
 
