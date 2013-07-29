@@ -1,3 +1,7 @@
+import libs.patch_random
+import random
+random.seed(2)
+
 import libtcodpy as tc
 import numpy as np
 
@@ -19,14 +23,17 @@ class Application(object):
 		self.events = events.EventHandler()
 		player.ArrowHandler(self.player, self.events)
 
-
-
+		self.actors = []
+		for x in range(40):
+			self.actors.append(player.Actor(random.randrange(100), random.randrange(63), self.map))
 
 		tc.sys_set_fps(60)
 
 	def init(self):
 		self.screen.init("test")
 		self.player.draw()
+		for actor in self.actors:
+			actor.draw()
 
 	def run(self):
 		while not tc.console_is_window_closed():

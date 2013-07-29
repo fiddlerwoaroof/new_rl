@@ -53,7 +53,7 @@ class Map(object):
 			ox,oy = object.pos
 			x = squeeze(ox+dx, 0, self.width-1)
 			y = squeeze(oy+dy, 0, self.height-1)
-			if not self.fov.is_passable((x,y)):
+			if not self.is_passable((x,y)):
 				x,y = ox,oy
 
 		else:
@@ -61,7 +61,7 @@ class Map(object):
 			tx,ty = ox+dx, oy+dy
 			gx,gy = ox,oy
 			for x,y in libs.bresenham.line(ox,oy, tx,ty, 1):
-				if not self.fov.is_passable((x,y)): break
+				if not self.is_passable((x,y)): break
 				else: gx,gy = x,y
 			x,y = gx,gy
 
@@ -74,6 +74,19 @@ class Map(object):
 		else:
 			if (x,y) in self.overlays and self.overlays[x,y] == []:
 				self.overlays.pop((x,y))
+
+	def set_pov(self, pov):
+		self.pov = pov
+
+	def get_visible_objects(self):
+		o,r = self.pov
+		results = set()
+		for x,y in self.overlays:
+			if self.fov.is_visible(o,r, (x,y)):
+				results.update(self.overlays[x,y])
+		return results
+
+
 
 	def get_rgb(self, colors, fg=True,slices=(slice(0),slice(0))):
 		result = np.rollaxis(colors[slices], 2)
@@ -122,6 +135,12 @@ class Map(object):
 	@property
 	def dim(self):
 		return self.width, self.height
+
+	def is_passable(self, coord):
+		if coord in self.overlays and any(x.blocks for x in self.overlays[coord]):
+			return False
+		else:
+			return self.fov.is_passable(coord)
 
 
 class FovCache(object):

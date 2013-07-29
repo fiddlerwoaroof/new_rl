@@ -1,8 +1,10 @@
 import libtcodpy as tc
+import libs.combat
 
 class Actor(object):
 	char = ord('@')
 	color = (255,0,0)
+	blocks = True
 
 	@property
 	def pos(self):
@@ -20,11 +22,20 @@ class Actor(object):
 		dx, dy = self.map.move(self, dx,dy)
 		self.x += dx
 		self.y += dy
-		self.map.pov = (self.pos, 10)
+
+	def tick(self):
+		pass
 
 class Player(Actor):
 	char = ord('@')
 	color = (255,255,255)
+	light_radius = 10
+	def __init__(self, x,y, map):
+		Actor.__init__(self, x,y, map)
+		self.map.set_pov((self.pos, self.light_radius))
+	def move(self, dx, dy):
+		Actor.move(self, dx,dy)
+		self.map.set_pov((self.pos, self.light_radius))
 
 class ArrowHandler(object):
 	def __init__(self, player, eh):
