@@ -35,8 +35,10 @@ nosetests.xml
 .pydevproject
 
 # ignore the symlinks here
+*.dylib
 *.so
 *.png
+
 
 # ignore experiments
 *_test*.py

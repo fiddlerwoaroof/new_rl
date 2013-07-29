@@ -6,7 +6,7 @@ if [[ $1 != "" ]]; then
    arch=$1
 fi
 
-echo blobs/$arch/*.so
-ln -s blobs/$arch/*.so .
-rm *_debug*.so
+echo blobs/$arch/libtcod*
+ln -s blobs/$arch/libtcod* .
+rm *_debug*.{so,dylib}
 ln -s blobs/terminal.png .
