@@ -1,4 +1,4 @@
-#!/bin/zsh-beta
+#!/bin/zsh
 
 arch=linux_x86_64
 
