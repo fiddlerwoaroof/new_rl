@@ -1,30 +1,18 @@
 import libtcodpy as tc
+import libs.combat
+import libs.overlay
 
-class Actor(object):
-	char = ord('@')
-	color = (255,0,0)
-
-	@property
-	def pos(self):
-		return self.x, self.y
-
-	def __init__(self, x,y, map):
-		self.x = x
-		self.y = y
-		self.map = map
-
-	def draw(self):
-		self.map.add(self)
-
-	def move(self, dx, dy):
-		dx, dy = self.map.move(self, dx,dy)
-		self.x += dx
-		self.y += dy
-		self.map.pov = (self.pos, 10)
-
-class Player(Actor):
+class Player(libs.overlay.Actor):
 	char = ord('@')
 	color = (255,255,255)
+	light_radius = 10
+	def __init__(self, x,y, map, adventurer):
+		libs.overlay.Actor.__init__(self, x,y, map, adventurer)
+		print 'Player\'s name is %s' % self.adventurer.name
+		self.map.set_pov((self.pos, self.light_radius))
+	def move(self, dx, dy):
+		libs.overlay.Actor.move(self, dx,dy)
+		self.map.set_pov((self.pos, self.light_radius))
 
 class ArrowHandler(object):
 	def __init__(self, player, eh):

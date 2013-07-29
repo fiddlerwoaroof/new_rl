@@ -46,14 +46,22 @@ class Map(object):
 	def add(self, object):
 		self.overlays.setdefault(object.pos,[]).append(object)
 
+	def check_and_execute_bump(self, object, x,y):
+		if (x,y) in self.overlays:
+			for other in self.overlays[x,y]:
+				object.bump(other)
+
 	def move(self, object, dx,dy):
 		self.overlays[object.pos].remove(object)
+
+		collide_x, collide_y = None, None
 
 		if abs(dx) < 2 and abs(dy) < 2:
 			ox,oy = object.pos
 			x = squeeze(ox+dx, 0, self.width-1)
 			y = squeeze(oy+dy, 0, self.height-1)
-			if not self.fov.is_passable((x,y)):
+			if not self.is_passable((x,y)):
+				collide_x, collide_y = x,y
 				x,y = ox,oy
 
 		else:
@@ -61,9 +69,14 @@ class Map(object):
 			tx,ty = ox+dx, oy+dy
 			gx,gy = ox,oy
 			for x,y in libs.bresenham.line(ox,oy, tx,ty, 1):
-				if not self.fov.is_passable((x,y)): break
+				if not self.is_passable((x,y)):
+					collide_x, collide_y = x,y
+					break
 				else: gx,gy = x,y
 			x,y = gx,gy
+
+		if collide_x is not None:
+			self.check_and_execute_bump(object, collide_x, collide_y)
 
 		self.overlays.setdefault((x,y), []).append(object)
 		self.update_overlay(ox,oy)
@@ -74,6 +87,19 @@ class Map(object):
 		else:
 			if (x,y) in self.overlays and self.overlays[x,y] == []:
 				self.overlays.pop((x,y))
+
+	def set_pov(self, pov):
+		self.pov = pov
+
+	def get_visible_objects(self):
+		o,r = self.pov
+		results = set()
+		for x,y in self.overlays:
+			if self.fov.is_visible(o,r, (x,y)):
+				results.update(self.overlays[x,y])
+		return results
+
+
 
 	def get_rgb(self, colors, fg=True,slices=(slice(0),slice(0))):
 		result = np.rollaxis(colors[slices], 2)
@@ -122,6 +148,12 @@ class Map(object):
 	@property
 	def dim(self):
 		return self.width, self.height
+
+	def is_passable(self, coord):
+		if coord in self.overlays and any(x.blocks for x in self.overlays[coord]):
+			return False
+		else:
+			return self.fov.is_passable(coord)
 
 
 class FovCache(object):
