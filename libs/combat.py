@@ -5,6 +5,9 @@ from .combat_parts import equipment
 from .combat_parts import skills
 from .combat_parts import constants as const
 
+from src import events
+eh = events.EventHandler()
+
 import collections
 import random
 
@@ -48,6 +51,10 @@ class Adventurer(object):
 		if val > const.KNOCKOUT: val = const.KNOCKOUT
 		self.attributes.state = val
 
+	@property
+	def readable_state(self):
+		return ['healthy', 'wounded', 'knocked out'][self.state if self.state < 3 else 2]
+
 	@classmethod
 	def randomize(cls, stat_sum=28):
 		name = '%s %s%s' % (
@@ -89,7 +96,9 @@ class Adventurer(object):
 		if pass_:
 			if self.weapon is not None:
 				damage += self.weapon.damage_mod
-			print '%s inflicts %d damage upon %s' % (self.name, damage, opponent.name)
+			eh.trigger_event('msg',
+				'%s inflicts %d damage upon %s' % (self.name, damage, opponent.name)
+			)
 			opponent.take_damage(damage)
 
 	def take_damage(self, damage):
@@ -104,7 +113,9 @@ class Adventurer(object):
 		if not result:
 			if damage > 0:
 				self.state += 1
-				print '%s takes %d damage and is now %s' % (self.name, damage, ['healthy', 'wounded', 'ko'][self.state if self.state < 3 else 2])
+				eh.trigger_event('msg',
+					'%s takes %d damage and is now %s' % (self.name, damage, self.readable_state)
+				)
 				if self.state >= const.KNOCKOUT:
 					self.die()
 

@@ -51,35 +51,47 @@ class Map(object):
 			for other in self.overlays[x,y]:
 				object.bump(other)
 
-	def move(self, object, dx,dy):
-		self.overlays[object.pos].remove(object)
+	def interact(self, a, bs):
+		print 'interacting with:', bs
+		for b in bs:
+			a.interact(b)
 
-		collide_x, collide_y = None, None
+	def remove(self, object):
+		pos = object.pos
+		if pos in self.overlays and object in self.overlays[pos]:
+			self.overlays[pos].remove(object)
+
+	def move(self, object, dx,dy, update_cb):
+		ox,oy = object.pos
 
 		if abs(dx) < 2 and abs(dy) < 2:
-			ox,oy = object.pos
+			self.overlays[object.pos].remove(object)
+
+			collide_x, collide_y = None, None
 			x = squeeze(ox+dx, 0, self.width-1)
 			y = squeeze(oy+dy, 0, self.height-1)
 			if not self.is_passable((x,y)):
 				collide_x, collide_y = x,y
 				x,y = ox,oy
+			update_cb(x-ox, y-oy)
 
+			if collide_x is not None:
+				self.check_and_execute_bump(object, collide_x, collide_y)
+			if object.pos in self.overlays:
+				self.interact(object, self.overlays[object.pos])
+
+			self.overlays.setdefault((x,y), []).append(object)
+			self.update_overlay(ox,oy)
 		else:
-			ox,oy = object.pos
-			tx,ty = ox+dx, oy+dy
-			gx,gy = ox,oy
-			for x,y in libs.bresenham.line(ox,oy, tx,ty, 1):
-				if not self.is_passable((x,y)):
-					collide_x, collide_y = x,y
+			# calculate the deltas for each step
+			line = list(libs.bresenham.line(0,0, dx,dy, 0))
+			line = [(bx-ax, by-ay) for (ax,ay), (bx,by) in zip(line,line[1:])]
+			print line
+			for x,y in line:
+				if self.move(object, x,y, update_cb) != (x,y):
 					break
-				else: gx,gy = x,y
-			x,y = gx,gy
+			x,y = object.pos
 
-		if collide_x is not None:
-			self.check_and_execute_bump(object, collide_x, collide_y)
-
-		self.overlays.setdefault((x,y), []).append(object)
-		self.update_overlay(ox,oy)
 		return x-ox, y-oy
 
 	def update_overlay(self, x=None, y=None):
@@ -102,38 +114,55 @@ class Map(object):
 
 
 	def get_rgb(self, colors, fg=True,slices=(slice(0),slice(0))):
-		result = np.rollaxis(colors[slices], 2)
+		result = np.rollaxis(colors, 2)
 		return [x.transpose() for x in result]
 
 	def draw(self, con, tl=(0,0)):
+		def mv(x,y, (lx,ty)):
+			return x-lx, y-ty
 		br = tl[0]+con.width, tl[1]+con.height
+		slices = slice(tl[0], br[0]), slice(tl[1], br[1])
 
 		fgcolors = self.fgcolors.astype('int')
 		bgcolors = self.bgcolors.astype('int')
 		color_mask = np.ones( (con.width, con.height, 3) )
 		char_mask = np.ones( (con.width, con.height) ).astype('bool')
+
 		if self.pov is not None:
 			origin, radius = self.pov
+			ox, oy = origin
+			if ox+radius >= br[0] or oy+radius >= br[1]:
+				xmod, ymod = 0,0
+				if ox + radius >= br[0]:
+					xmod = min(ox + radius - br[0], self.width - br[0])
+				if oy + radius >= br[1]:
+					ymod =  min(oy + radius - br[1], self.height - br[1])
+				br = br[0] + xmod, br[1] + ymod
+				tl = tl[0] + xmod, tl[1] + ymod
+				slices = slice(tl[0], br[0]), slice(tl[1], br[1])
 			def calc_mask():
 				for x in range(tl[0], br[0]):
 					for y in range(tl[1], br[1]):
 						if not self.fov.is_visible(origin, radius, (x,y)):
-							color_mask[x,y] = (0.25, 0.5, 0.5)
-							char_mask[x,y] = False
+							color_mask[x-tl[0], y-tl[1]] = (0.25, 0.5, 0.5)
+							char_mask[x-tl[0], y-tl[1]] = False
 				return color_mask, char_mask
-			color_mask, char_mask = self.povcache.get( (origin,radius), calc_mask )
-			fgcolors = (fgcolors * color_mask).astype('int')
-			bgcolors = (bgcolors * color_mask).astype('int')
+			color_mask, char_mask = self.povcache.get( (origin,radius,tl), calc_mask )
+			fgcolors = (fgcolors[slices] * color_mask).astype('int')
+			bgcolors = (bgcolors[slices] * color_mask).astype('int')
+		else:
+			fgcolors = fgcolors[slices]
+			bgcolors = bgcolors[slices]
 
-		slices = slice(tl[0], tl[0]+con.width), slice(tl[1], tl[1]+con.height)
-		tc.console_fill_foreground(con.con, *self.get_rgb(fgcolors, slices=slices))
-		tc.console_fill_background(con.con, *self.get_rgb(bgcolors, False,slices=slices))
+		tc.console_fill_foreground(con.con, *self.get_rgb(fgcolors))
+		tc.console_fill_background(con.con, *self.get_rgb(bgcolors, False))
 
 		chars = np.copy(self.map[slices])
 		for x,y in self.overlays:
 			screen_x = x-tl[0]
 			screen_y = y-tl[1]
-			if not char_mask[screen_x,screen_y]: continue
+			if (not (tl[0] <= x < br[0])) or (not (tl[1] <= y < br[1])): continue
+			elif not char_mask[screen_x,screen_y]: continue
 			if 0 <= screen_x < con.width and 0 <= screen_y < con.height:
 				obj = self.overlays[x,y][-1]
 				chars[screen_x,screen_y] = obj.char
@@ -183,7 +212,7 @@ class FovCache(object):
 			self.fovmaps[key] = fovmap
 
 			x,y = origin
-			tc.map_compute_fov(fovmap, x,y, radius)
+			tc.map_compute_fov(fovmap, x,y, radius, algo=tc.FOV_DIAMOND)
 
 		return fovmap
 
