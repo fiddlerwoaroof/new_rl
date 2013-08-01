@@ -1,3 +1,4 @@
+from src import events
 import abc
 import collections
 from . import combat
@@ -13,6 +14,7 @@ class Overlay(object):
 	def pos(self):
 		return self.x, self.y
 	def __init__(self, x,y, map):
+		print self.handled_events
 		self.events = collections.OrderedDict()
 		self.x = x
 		self.y = y
@@ -38,21 +40,30 @@ class Overlay(object):
 			result = result is None or result # if the event returns a false value besides None, break
 			if result == False: break
 
-	handled_events = collections.OrderedDict()
-	@classmethod
-	def handle_event(cls, event):
-		def _inner(cb):
-			cls.handled_events.setdefault(event, []).append(cb)
-			return cb
+	@staticmethod
+	def add_event(event,  cb_name):
+		def _inner(cls):
+			if not hasattr(cls,  'handled_events'):
+				cls.handled_events = {}
+				for base in cls.bases:
+					if hasattr(base,  'handled_events'):
+						cls.handled_events.update(base.handled_events)
+			cls.handled_events.setdefault(event,  []).append(getattr(cls,  cb_name))
+			return cls
 		return _inner
 
+	def tick(self):
+		pass
 
 
+@Overlay.add_event('attacked',  'attacked_by')
+@Overlay.add_event('bumped',  'bumped_by')
 class Actor(Overlay):
 	char = ord('@')
 	color = (255,0,0)
 	blocks = True
 
+	handled_events = collections.OrderedDict()
 	@property
 	def pos(self):
 		return self.x, self.y
@@ -63,11 +74,19 @@ class Actor(Overlay):
 		if adventurer is None:
 			adventurer = combat.Adventurer.randomize()
 		self.adventurer = adventurer
+		self.repeated_actions = {}
 
-	def move(self, dx, dy):
-		dx, dy = self.map.move(self, dx,dy)
+	def add_repeated_action(self, time, action, *args, **kw):
+		print 'adding action', action, args, kw
+		self.repeated_actions.setdefault(time, []).append( (action, args, kw) )
+
+	def update_pos(self, dx,dy):
 		self.x += dx
 		self.y += dy
+
+	def move(self, dx, dy):
+		print 'moving'
+		self.map.move(self, dx,dy, self.update_pos)
 
 	def tick(self):
 		result = True
@@ -75,6 +94,15 @@ class Actor(Overlay):
 			result = False
 			self.char = ord('%')
 			self.blocks = False
+		else:
+			ractions = {}
+			for nleft, actions in self.repeated_actions.items():
+				for (action,args,kwargs) in actions:
+					print action,args,kwargs
+					action(*args, **kwargs)
+					if nleft > 1:
+						ractions.setdefault(nleft-1, []).append( (action,args,kwargs) )
+			self.repeated_actions = ractions
 		return result
 
 	def ishostile(self, other):
@@ -85,32 +113,43 @@ class Actor(Overlay):
 		if isinstance(other, Actor) and other.ishostile(self):
 			self.adventurer.attack(other.adventurer)
 			other.trigger_event('attacked', self)
-		elif isinstance(other, Object):
+
+	def interact(self, other):
+		result = False
+		if isinstance(other, Object):
+			result = True
 			self.pickup(other)
 			other.trigger_event('picked_up', self)
 
 		other.trigger_event('bumped', self)
+		return result
 
-	@Overlay.handle_event('attacked')
+	def pickup(self, other):
+		self.inventory.append(other)
+
 	def attacked_by(self, other):
 		if self.adventurer.skills.check('agility'):
 			self.adventurer.attack(other.adventurer)
 
-	@Overlay.handle_event('bumped')
 	def bumped_by(self, other):
 		print '%s was bumped by %s' % (type(self).__name__, type(other).__name__)
 
+@Overlay.add_event('picked_up',  'picked_up_by')
+@Overlay.add_event('bumped',  'bumped_by')
 class Object(Overlay):
 	item = None
-	@Overlay.handle_event('picked_up')
+	handled_events = collections.OrderedDict()
 	def picked_up_by(self, other):
+		events.EventHandler().trigger_event('msg', 'picked up a %s' % self)
 		self.map.remove(self)
+	def bumped_by(self, other): pass
 
 class Weapon(Object):
 	item = None
 
 class Potion(Object):
 	char = ord('!')
+	def __str__(self): return 'potion'
 
 class Scroll(Object):
 	char = ord('!')
