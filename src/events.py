@@ -1,6 +1,22 @@
 import libtcodpy as tc
+import collections
 
 class EventHandler(object):
+	events = {}
+	def register_event(self, event):
+		return self.events.setdefault(event, [])
+	def handle_event(self, event, cb, *a, **kw):
+		cbs = self.register_event(event)
+		cbs.append( (cb, a, kw) )
+	def trigger_event(self, event, *a, **kw):
+		for cb, args, kwargs in self.events.get(event,[]):
+			kw.update(kwargs)
+			a += args
+			result = cb(*a, **kw)
+			if result is not None and not result: break
+
+
+class TCODEventHandler(object):
 	def __init__(self):
 		self.key = tc.Key()
 		self.mouse = tc.Mouse()
