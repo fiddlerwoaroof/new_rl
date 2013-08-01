@@ -1,6 +1,11 @@
 new_rl
 ======
 
+Currently this is more a roguelike engine than a roguelike.  Monster
+interaction is limited to attacking stationary monsters, item interaction to
+picking up items and terrain generation is rudimentary. Additionally, it has
+no name.  Hopefully all this will change.
+
 TODO
 ----
 
