@@ -1,5 +1,7 @@
+import os
 if __name__ == '__main__':
-    execfile('/home/edwlan/python_envs/roguelike/bin/activate_this.py',  dict(__file__='/home/edwlan/python_envs/roguelike/bin/activate_this.py'))
+	HOME=os.environ['HOME']
+	execfile(os.path.join(HOME, 'python_envs', 'roguelike', 'bin', 'activate_this.py'),  dict(__file__='/home/edwlan/python_envs/roguelike/bin/activate_this.py'))
 
 import libs.patch_random
 import random
@@ -25,6 +27,10 @@ import twisted.internet
 
 WIDTH = 118
 HEIGHT = 62
+
+try: from settings import WIDTH, HEIGHT
+except ImportError: pass
+
 class Application(object):
 	def __init__(self):
 		self.screen = console.Screen(WIDTH, HEIGHT+5)
