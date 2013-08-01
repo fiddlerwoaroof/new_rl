@@ -128,6 +128,7 @@ class Map(object):
 		color_mask = np.ones( (con.width, con.height, 3) )
 		char_mask = np.ones( (con.width, con.height) ).astype('bool')
 
+		self.pov = None
 		if self.pov is not None:
 			origin, radius = self.pov
 			ox, oy = origin

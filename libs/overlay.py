@@ -14,6 +14,7 @@ class Overlay(object):
 	def pos(self):
 		return self.x, self.y
 	def __init__(self, x,y, map):
+		super(Overlay, self).__init__()
 		print self.handled_events
 		self.events = collections.OrderedDict()
 		self.x = x
@@ -32,10 +33,7 @@ class Overlay(object):
 		self.events.setdefault(event, []).append(cb)
 
 	def trigger_event(self, event, *args, **kw):
-		if event not in self.events:
-			raise ValueError('%r has no event %r' % (self, event))
-
-		for cb in self.events[event]:
+		for cb in self.events.get(event, []):
 			result = cb(self, *args, **kw)
 			result = result is None or result # if the event returns a false value besides None, break
 			if result == False: break
@@ -95,6 +93,7 @@ class Actor(Overlay):
 			self.char = ord('%')
 			self.blocks = False
 		else:
+			self.act()
 			ractions = {}
 			for nleft, actions in self.repeated_actions.items():
 				for (action,args,kwargs) in actions:
@@ -102,8 +101,11 @@ class Actor(Overlay):
 					action(*args, **kwargs)
 					if nleft > 1:
 						ractions.setdefault(nleft-1, []).append( (action,args,kwargs) )
+				print ractions
 			self.repeated_actions = ractions
 		return result
+
+	def act(self): pass
 
 	def ishostile(self, other):
 		return self.adventurer.state < 2 #TODO: implement factions
@@ -133,6 +135,12 @@ class Actor(Overlay):
 
 	def bumped_by(self, other):
 		print '%s was bumped by %s' % (type(self).__name__, type(other).__name__)
+
+import random
+class AIActor(Actor):
+	def act(self):
+		print 'wiggly %s' % self.adventurer.name
+		self.move(random.choice([-1,0,1]), random.choice([-1,0,1]))
 
 @Overlay.add_event('picked_up',  'picked_up_by')
 @Overlay.add_event('bumped',  'bumped_by')

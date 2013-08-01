@@ -2,6 +2,14 @@ import libtcodpy as tc
 import libs.combat
 import libs.overlay
 
+def trigger_update(func):
+	def _inner(self, *a, **kw):
+		self.trigger_event('preupdate')
+		result = func(self, *a, **kw)
+		self.trigger_event('update')
+		return result
+	return _inner
+
 class Player(libs.overlay.Actor):
 	char = ord('@')
 	color = (255,255,255)
@@ -11,14 +19,16 @@ class Player(libs.overlay.Actor):
 		print 'Player\'s name is %s' % self.adventurer.name
 		self.map.set_pov((self.pos, self.light_radius))
 		self.display = None
+
+	@trigger_update
 	def move(self, dx, dy):
 		libs.overlay.Actor.move(self, dx,dy)
 		self.map.set_pov((self.pos, self.light_radius))
 
 	def claim_display(self, display):
 		self.display = display
+
 	def tick(self):
-		print 'player_tick'
 		return libs.overlay.Actor.tick(self)
 
 class ArrowHandler(object):

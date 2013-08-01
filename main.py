@@ -46,7 +46,8 @@ class Application(object):
 
 		self.actors = [self.player]
 		for x in range(40):
-			self.actors.append(overlay.Actor(random.randrange(WIDTH), random.randrange(HEIGHT), self.map))
+			self.actors.append(overlay.AIActor(random.randrange(WIDTH), random.randrange(HEIGHT), self.map))
+		self.player.register_event('update', self.tick_actors)
 
 		self.objects = []
 		for x in range(50):
@@ -54,9 +55,19 @@ class Application(object):
 
 		tc.sys_set_fps(30)
 
+	def tick_actor(self, actor):
+		keep = actor.tick()
+		if not keep:
+			self.actors.remove(actor)
+			self.objects.append(actor)
+
 	def update_actors(self):
+		self.player.tick()
+
+	def tick_actors(self, player):
+		print 'actor_tick'
 		to_pop = []
-		for idx,actor in enumerate(self.actors):
+		for idx,actor in enumerate(self.actors[1:],1):
 			if not actor.tick():
 				bisect.insort(to_pop, idx)
 		for pop in reversed(to_pop):
@@ -67,7 +78,6 @@ class Application(object):
 		self.screen.init("test")
 		self.message_console.fill(0,0,128)
 		#self.player.draw()
-		self.update_actors()
 		for overlay in self.actors + self.objects:
 			overlay.draw()
 
