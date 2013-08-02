@@ -1,7 +1,7 @@
 import os
 if __name__ == '__main__':
 	HOME=os.environ['HOME']
-	execfile(os.path.join(HOME, 'python_envs', 'roguelike', 'bin', 'activate_this.py'),  dict(__file__='/home/edwlan/python_envs/roguelike/bin/activate_this.py'))
+	execfile(os.path.join(HOME, 'python_envs', 'roguelike', 'bin', 'activate_this.py'),  dict(__file__=os.path.join(HOME, 'python_envs', 'roguelike', 'bin', 'activate_this.py')))
 
 import libs.patch_random
 import random
