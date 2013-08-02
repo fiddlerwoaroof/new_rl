@@ -16,16 +16,14 @@ def shorten(str):
 class _CancelUpdate: pass
 def trigger_update(func):
 	def _inner(self, *a, **kw):
-		self.trigger_event('preupdate')
 		result = func(self, *a, **kw)
 		if result is not _CancelUpdate:
-			self.trigger_event('update')
-		else:
-			self.trigger_event('update_cancelled')
-			print 'cancelled update!'
+			print 'will update!'
+			self.update = True
 		return result
 	return _inner
 
+@libs.overlay.Actor.add_event('attack', 'attack')
 class Player(libs.overlay.Actor):
 	char = ord('@')
 	color = (255,255,255)
@@ -35,6 +33,11 @@ class Player(libs.overlay.Actor):
 		print 'Player\'s name is %s' % self.adventurer.name
 		self.map.set_pov((self.pos, self.light_radius))
 		self.display = None
+		self.update = False
+
+	@trigger_update
+	def attack(self, *a, **kw):
+		print 'attack'
 
 	@trigger_update
 	def move(self, dx, dy):
@@ -52,7 +55,14 @@ class Player(libs.overlay.Actor):
 		self.display.set_line(0, shorten(self.adventurer.name))
 		self.display.set_line(1, self.adventurer.readable_state)
 
-		return libs.overlay.Actor.tick(self)
+		result = libs.overlay.Actor.tick(self)
+		if self.update:
+			print 'updating'
+			try: self.trigger_event('update')
+			finally: self.update = False
+
+		return result
+
 
 class ArrowHandler(object):
 	def __init__(self, player, eh):

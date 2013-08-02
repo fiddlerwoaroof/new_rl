@@ -3,6 +3,12 @@ import abc
 import collections
 from . import combat
 
+def intercept_args(func):
+	def _inner(*a, **kw):
+		print func, a, kw
+		return func(*a, **kw)
+	return _inner
+
 class Overlay(object):
 	__metaclass__ = abc.ABCMeta
 
@@ -20,8 +26,9 @@ class Overlay(object):
 		self.x = x
 		self.y = y
 		self.map = map
+		print 'self.__class__', self.__class__, 'handled_events', self.__class__.handled_events, id(self.__class__.handled_events)
 		for key, value in self.handled_events.viewitems():
-			self.events.setdefault(key, []).extend(value)
+			self.events.setdefault(key, []).append(getattr(self.__class__, value))
 
 	def draw(self):
 		self.map.add(self)
@@ -34,6 +41,7 @@ class Overlay(object):
 
 	def trigger_event(self, event, *args, **kw):
 		for cb in self.events.get(event, []):
+			print 'triggering:', event, args, kw
 			result = cb(self, *args, **kw)
 			result = result is None or result # if the event returns a false value besides None, break
 			if result == False: break
@@ -43,10 +51,13 @@ class Overlay(object):
 		def _inner(cls):
 			if not hasattr(cls,  'handled_events'):
 				cls.handled_events = {}
-				for base in cls.bases:
+				for base in cls.__bases__:
 					if hasattr(base,  'handled_events'):
 						cls.handled_events.update(base.handled_events)
-			cls.handled_events.setdefault(event,  []).append(getattr(cls,  cb_name))
+			elif any(cls.handled_events is getattr(base, 'handled_events', []) for base in cls.__bases__):
+				cls.handled_events = cls.handled_events.copy()
+			cls.handled_events[event] = cb_name
+			print 'events for class', cls, cls.handled_events
 			return cls
 		return _inner
 
@@ -61,7 +72,6 @@ class Actor(Overlay):
 	color = (255,0,0)
 	blocks = True
 
-	handled_events = collections.OrderedDict()
 	@property
 	def pos(self):
 		return self.x, self.y
@@ -114,6 +124,7 @@ class Actor(Overlay):
 	def bump(self, other):
 		print '%s bumped %s' % (type(self).__name__, type(other).__name__)
 		if isinstance(other, Actor) and other.ishostile(self):
+			self.trigger_event('attack', other)
 			self.adventurer.attack(other.adventurer)
 			other.trigger_event('attacked', self)
 
@@ -142,12 +153,13 @@ class AIActor(Actor):
 	def act(self):
 		print 'wiggly %s' % self.adventurer.name
 		self.move(random.choice([-1,0,1]), random.choice([-1,0,1]))
+	def attacked_by(self, other):
+		print 'ouch'
 
 @Overlay.add_event('picked_up',  'picked_up_by')
 @Overlay.add_event('bumped',  'bumped_by')
 class Object(Overlay):
 	item = None
-	handled_events = collections.OrderedDict()
 	def picked_up_by(self, other):
 		events.EventHandler().trigger_event('msg', 'picked up a %s' % self)
 		self.map.remove(self)
@@ -165,3 +177,4 @@ class Scroll(Object):
 
 class Equipment(Object):
 	pass
+
