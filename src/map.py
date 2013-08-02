@@ -94,6 +94,12 @@ class Map(object):
 
 		return x-ox, y-oy
 
+	def move_toward_origin(self, object, update_cb):
+		if self.pov is None: raise ValueError('No origin set')
+		term, _ = self.pov
+		dx,dy = self.fov.get_pathstep(object.pos, term)
+		return self.move(object, dx,dy, update_cb)
+
 	def update_overlay(self, x=None, y=None):
 		if x is None or y is None: pass
 		else:
@@ -178,6 +184,13 @@ class Map(object):
 	def dim(self):
 		return self.width, self.height
 
+	def is_visible(self, coord):
+		result = True
+		if self.pov is not None:
+			o,r = self.pov
+			result = self.fov.is_visible(o,r, coord)
+		return result
+
 	def is_passable(self, coord):
 		if coord in self.overlays and any(x.blocks for x in self.overlays[coord]):
 			return False
@@ -201,6 +214,7 @@ class FovCache(object):
 			tc.map_set_properties(self.base_map, x,y, trnsprnt,pssble)
 
 		self.fovmaps = {}
+		self.paths   = {}
 
 	def get_fovmap(self, origin, radius):
 		key = origin,radius
@@ -215,6 +229,28 @@ class FovCache(object):
 			tc.map_compute_fov(fovmap, x,y, radius, algo=tc.FOV_DIAMOND)
 
 		return fovmap
+
+	def get_pathmap(self, term):
+		'''note: running libtcod's functions backwards, since the player's position is more stable than the AI's'''
+		key = term
+		if key not in self.paths:
+			tx,ty = term
+			pmap = self.paths[key] = tc.dijkstra_new(self.base_map, 1)
+			tc.dijkstra_compute(pmap, tx,ty)
+		return self.paths[key]
+
+	def get_pathstep(self, origin, term):
+		ox,oy = origin
+		pmap = self.get_pathmap(term)
+		dx,dy = 0,0 # don't move if no path
+		if tc.dijkstra_path_set(pmap, ox,oy): # NOTE: walk path backwards!!!
+			plen = tc.dijkstra_size(pmap)
+			x,y = tc.dijkstra_get(pmap, plen-2)
+			dx,dy = x-ox, y-oy
+		print 'dijkstra step: %d,%d' % (dx,dy)
+		return dx,dy
+
+
 
 	def is_visible(self, origin, radius, coord):
 		fovmap = self.get_fovmap(origin, radius)

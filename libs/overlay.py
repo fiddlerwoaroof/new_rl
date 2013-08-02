@@ -157,8 +157,12 @@ class Actor(Overlay):
 import random
 class AIActor(Actor):
 	def act(self):
-		print 'wiggly %s' % self.adventurer.name
-		self.move(random.choice([-1,0,1]), random.choice([-1,0,1]))
+		if self.map.is_visible(self.pos):
+			self.map.move_toward_origin(self, self.update_pos)
+		else:
+			print 'wiggly %s' % self.adventurer.name
+			self.move(random.choice([-1,0,1]), random.choice([-1,0,1]))
+
 	def attacked_by(self, other):
 		print 'ouch'
 
