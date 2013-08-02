@@ -84,7 +84,8 @@ class Actor(Overlay):
 
 	def move(self, dx, dy):
 		print 'moving'
-		self.map.move(self, dx,dy, self.update_pos)
+		return self.map.move(self, dx,dy, self.update_pos)
+
 
 	def tick(self):
 		result = True

@@ -36,7 +36,7 @@ class Application(object):
 		self.screen = console.Screen(WIDTH, HEIGHT+5)
 		self.console = console.Console(WIDTH, HEIGHT, self.screen)
 		self.message_console = console.Console(WIDTH, 5, self.screen, (0,HEIGHT))
-		self.messages = text_display.MessageBox(self.message_console, 5, (10,0), 'msg')
+		self.messages = text_display.MessageBox(self.message_console, 5, (22,0), 'msg')
 		self.fps_display = text_display.Label(self.message_console, (0,0), None)
 
 		self.terrain_registry = map.TerrainRegistry()

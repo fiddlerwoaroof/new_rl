@@ -2,11 +2,27 @@ import libtcodpy as tc
 import libs.combat
 import libs.overlay
 
+vowels = {'a', 'e', 'i', 'o', 'u'}
+def shorten(str):
+	init = str[0]
+	fin = ''
+	middle = ''
+	if len(str) > 1:
+		fin = str[-1]
+	if len(str) > 2:
+		middle = ''.join(x for x in str[1:-1] if x not in vowels)
+	return '%s%s%s' % (init, middle, fin)
+
+class _CancelUpdate: pass
 def trigger_update(func):
 	def _inner(self, *a, **kw):
 		self.trigger_event('preupdate')
 		result = func(self, *a, **kw)
-		self.trigger_event('update')
+		if result is not _CancelUpdate:
+			self.trigger_event('update')
+		else:
+			self.trigger_event('update_cancelled')
+			print 'cancelled update!'
 		return result
 	return _inner
 
@@ -22,13 +38,20 @@ class Player(libs.overlay.Actor):
 
 	@trigger_update
 	def move(self, dx, dy):
-		libs.overlay.Actor.move(self, dx,dy)
-		self.map.set_pov((self.pos, self.light_radius))
+		dx,dy = libs.overlay.Actor.move(self, dx,dy)
+		if (dx,dy) != (0,0):
+			self.map.set_pov((self.pos, self.light_radius))
+		else:
+			return _CancelUpdate
+		return dx,dy
 
 	def claim_display(self, display):
 		self.display = display
 
 	def tick(self):
+		self.display.set_line(0, shorten(self.adventurer.name))
+		self.display.set_line(1, self.adventurer.readable_state)
+
 		return libs.overlay.Actor.tick(self)
 
 class ArrowHandler(object):
