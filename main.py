@@ -57,7 +57,8 @@ class Application(object):
 
 		self.objects = []
 		for x in range(50):
-			self.objects.append(overlay.Potion(random.randrange(WIDTH), random.randrange(HEIGHT), self.map))
+			const = random.choice([overlay.Potion, overlay.HealthPotion])
+			self.objects.append(const(random.randrange(WIDTH), random.randrange(HEIGHT), self.map))
 
 		tc.sys_set_fps(30)
 

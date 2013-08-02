@@ -23,6 +23,7 @@ class Overlay(object):
 		super(Overlay, self).__init__()
 		print self.handled_events
 		self.events = collections.OrderedDict()
+		self.event_results = {}
 		self.x = x
 		self.y = y
 		self.map = map
@@ -40,11 +41,16 @@ class Overlay(object):
 		self.events.setdefault(event, []).append(cb)
 
 	def trigger_event(self, event, *args, **kw):
+		self.event_results[event] = []
 		for cb in self.events.get(event, []):
 			print 'triggering:', event, args, kw
 			result = cb(self, *args, **kw)
+			self.event_results[event].append(result)
 			result = result is None or result # if the event returns a false value besides None, break
 			if result == False: break
+
+	def get_event_result(self, event):
+		return self.event_results.get(event)
 
 	@staticmethod
 	def add_event(event,  cb_name):
@@ -160,6 +166,9 @@ class AIActor(Actor):
 @Overlay.add_event('bumped',  'bumped_by')
 class Object(Overlay):
 	item = None
+	def __init__(self, *a, **kw):
+		Overlay.__init__(self, *a, **kw)
+		self.activated = False
 	def picked_up_by(self, other):
 		events.EventHandler().trigger_event('msg', 'picked up a %s' % self)
 		self.map.remove(self)
@@ -172,8 +181,16 @@ class Potion(Object):
 	char = ord('!')
 	def __str__(self): return 'potion'
 
+class HealthPotion(Potion):
+	color = (255,128,128)
+	def picked_up_by(self, other):
+		events.EventHandler().trigger_event('msg', 'healing %s' % other.adventurer.name)
+		self.map.remove(self)
+		other.adventurer.state -= 1
+		return True
+
 class Scroll(Object):
-	char = ord('!')
+	pass
 
 class Equipment(Object):
 	pass
