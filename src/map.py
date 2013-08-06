@@ -52,7 +52,7 @@ class Map(object):
 				object.bump(other)
 
 	def interact(self, a, bs):
-		print 'interacting with:', bs
+		#print 'interacting with:', bs
 		for b in bs:
 			a.interact(b)
 
@@ -86,7 +86,7 @@ class Map(object):
 			# calculate the deltas for each step
 			line = list(libs.bresenham.line(0,0, dx,dy, 0))
 			line = [(bx-ax, by-ay) for (ax,ay), (bx,by) in zip(line,line[1:])]
-			print line
+			#print line
 			for x,y in line:
 				if self.move(object, x,y, update_cb) != (x,y):
 					break
@@ -247,7 +247,7 @@ class FovCache(object):
 			plen = tc.dijkstra_size(pmap)
 			x,y = tc.dijkstra_get(pmap, plen-2)
 			dx,dy = x-ox, y-oy
-		print 'dijkstra step: %d,%d' % (dx,dy)
+		#print 'dijkstra step: %d,%d' % (dx,dy)
 		return dx,dy
 
 
@@ -277,11 +277,13 @@ class TerrainInfo(object):
 		transparent = bool(transparent)
 		return type(name, (cls,), dict(char=char, passable=passable, transparent=transparent,fg=fg,bg=bg,prob=prob))
 
+import patches.yaml_omap_patch
 class TerrainRegistry(object):
 	def __init__(self):
 		self.id = 0
 		self.registry = {}
 		self.names = {}
+		self.types = {}
 
 	def get_terrain(self, id):
 		ter = self.registry[id]
@@ -301,19 +303,25 @@ class TerrainRegistry(object):
 		return types, probs
 
 
-	def register(self, ter):
+	def register(self, ter, classes):
 		self.id += 1
 		self.registry[self.id] = ter
 		self.names[ter.__name__] = ter
+		for klass in classes:
+			self.types.setdefault(klass, []).append(ter)
+		print self.types
 		return ter
 
-	def new_terrain(self, name, char,
-		passable=False, transparent=False, fg=(255,255,255), bg=(0,0,0), prob=1
-	):
+	def new_terrain(self, name, char, passable=False, transparent=False, fg=(255,255,255), bg=(0,0,0), prob=1, classes=('open',)):
 		ter = TerrainInfo.make_terrain(name, char, passable, transparent, fg,bg, prob=prob)
-		return self.register(ter)
 
-	def load_from_file(self, fn, loader=yaml.safe_load):
+		classes = set(classes)
+		if not passable: classes.add('blocks_movement')
+		if not transparent: classes.add('blocks_sight')
+
+		return self.register(ter, classes)
+
+	def load_from_file(self, fn, loader=yaml.load):
 		with open(fn) as f:
 			values = loader(f)
 		for name, terrain in values.viewitems():
