@@ -1,4 +1,5 @@
 from . import dice
+from . import markov
 
 from .combat_parts import races
 from .combat_parts import equipment
@@ -10,6 +11,7 @@ eh = events.EventHandler()
 
 import collections
 import random
+import unidecode
 
 def get_stats(sum_):
 	stats = [sum_/4]*4
@@ -55,13 +57,12 @@ class Adventurer(object):
 	def readable_state(self):
 		return ['healthy', 'wounded', 'knocked out'][self.state if self.state < 3 else 2]
 
+	with file('data/markov.yml') as f:
+		name_gen = markov.MarkovChain.from_yml(f, False)
+
 	@classmethod
 	def randomize(cls, stat_sum=28):
-		name = '%s %s%s' % (
-			random.choice(['Bill', 'Bob', 'Jerry']),
-			random.choice(['Longnose', 'Short-Tail', 'Squint']),
-			random.choice(['', ' the Great', ' The Cross-eyed', ' The Magnificent'])
-		)
+		name = unidecode.unidecode(cls.name_gen.new_word())
 		race = races.Race.random_race()
 		attr = Attributes.randomize(stat_sum)
 		print attr
