@@ -13,6 +13,7 @@ import numpy as np
 from gui import text_display
 from libs import overlay
 from libs import combat
+from libs import markov
 from src import events
 from src import player
 from src import console
@@ -59,6 +60,9 @@ class Application(object):
 		for x in range(50):
 			const = random.choice([overlay.Potion, overlay.HealthPotion])
 			self.objects.append(const(random.randrange(WIDTH), random.randrange(HEIGHT), self.map))
+
+		with file('data/markov.yml') as f:
+			self.name_gen = markov.MarkovChain.from_yml(f, False)
 
 		tc.sys_set_fps(30)
 
