@@ -1,36 +1,37 @@
-grass:
-   char: '.'
-   fg: [0,255,0]
-   bg: [0,100,0]
-   passable: true
-   transparent: true
-   prob: 10
-sand:
-   char: ','
-   fg: [255,255,0]
-   bg: [100,100,0]
-   passable: true
-   transparent: true
-scrub:
-   char: ','
-   fg: [0,127,0]
-   bg: [0,64,0]
-   passable: true
-   transparent: true
-water:
-   char: '~'
-   fg: [128,128,255]
-   bg: [64,64,128]
-   transparent: true
-   prob: 5
-brush:
-   char: '#'
-   fg: [0,122,0]
-   bg: [0,64,0]
-   passable: true
-   prob: 0.5
-tree:
-   char: '#'
-   fg: [0,244,0]
-   bg: [0,122,0]
-   prob: 0.1
+!!omap
+- grass: !!omap
+  - {char: .}
+  - fg: [0, 255, 0]
+  - bg: [0, 100, 0]
+  - {passable: true}
+  - {transparent: true}
+  - {prob: 10}
+- sand: !!omap
+  - {char: ','}
+  - fg: [255, 255, 0]
+  - bg: [100, 100, 0]
+  - {passable: true}
+  - {transparent: true}
+- scrub: !!omap
+  - {char: ','}
+  - fg: [0, 127, 0]
+  - bg: [0, 64, 0]
+  - {passable: true}
+  - {transparent: true}
+- water: !!omap
+  - {char: '~'}
+  - fg: [128, 128, 255]
+  - bg: [64, 64, 128]
+  - {transparent: true}
+  - {prob: 5}
+- brush: !!omap
+  - {char: '#'}
+  - fg: [0, 122, 0]
+  - bg: [0, 64, 0]
+  - {passable: true}
+  - {prob: 0.5}
+- tree: !!omap
+  - {char: '#'}
+  - fg: [0, 244, 0]
+  - bg: [0, 122, 0]
+  - {prob: 0.1}
