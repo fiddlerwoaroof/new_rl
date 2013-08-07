@@ -56,6 +56,9 @@ class MarkovChain(object):
 		d = yaml.load(d)
 		self.lookup = d['key']
 		self.probs = d['data']
+		d = yaml.load(d)
+		self.lookup = d['key']
+		self.probs = d['data']
 		self.counts = d['counts']
 		return self
 
