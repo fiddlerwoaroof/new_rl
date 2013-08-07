@@ -18,7 +18,7 @@ def trigger_update(func):
 	def _inner(self, *a, **kw):
 		result = func(self, *a, **kw)
 		if result is not _CancelUpdate:
-			print 'will update!'
+			#print 'will update!'
 			self.update = True
 		return result
 	return _inner
@@ -30,14 +30,14 @@ class Player(libs.overlay.Actor):
 	light_radius = 10
 	def __init__(self, x,y, map, adventurer):
 		libs.overlay.Actor.__init__(self, x,y, map, adventurer)
-		print 'Player\'s name is %s' % self.adventurer.name
+		#print 'Player\'s name is %s' % self.adventurer.name
 		self.map.set_pov((self.pos, self.light_radius))
 		self.display = None
 		self.update = False
 
 	@trigger_update
 	def attack(self, *a, **kw):
-		print 'attack'
+		pass #print 'attack'
 
 	@trigger_update
 	def move(self, dx, dy):
@@ -57,7 +57,7 @@ class Player(libs.overlay.Actor):
 
 		result = libs.overlay.Actor.tick(self)
 		if self.update:
-			print 'updating'
+			#print 'updating'
 			try: self.trigger_event('update')
 			finally: self.update = False
 

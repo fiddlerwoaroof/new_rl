@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy as np
 import libtcodpy as tc
 import yaml
@@ -7,7 +8,7 @@ import libs.cache
 def squeeze(val, low, high):
 	return min(max(val, low), high)
 
-class TerrainGen(object):
+class TerrainGenBase(object):
 	def __init__(self, map):
 		self.width, self.height = map.dim
 		self.terrain_registry = map.terrain_registry
@@ -27,6 +28,51 @@ class TerrainGen(object):
 				fgcolors[x,y] = fgcolor
 				bgcolors[x,y] = bgcolor
 		return map, chars, fgcolors, bgcolors
+
+class TerrainGen(TerrainGenBase):
+	def generate(self):
+		import libs.markov
+		import itertools
+		w,h = self.width, self.height
+
+		terrains, _ = self.terrain_registry.get_terrain_types()
+		terrains = itertools.cycle(terrains)
+		translator = {x:terrains.next() for x in 'abcdefghijklmnopqrstuvwxyz'}
+
+		chain = libs.markov.MarkovChain( (200,200) )
+		for x in self.terrain_registry.get_terrain_types()[0]:
+			chain.check_lookup(str(x))
+		with open('data/terraininit') as f:
+			combs = []
+			for line in f:
+				line = line.strip()
+				for l1,l2 in zip(line,line[1:]):
+					l1 = str(translator[l1])
+					l2 = str(translator[l2])
+					chain.check_lookup(l1)
+					chain.check_lookup(l2)
+					chain.inc_count(l1,l2)
+		chain.calc_prob()
+
+		map = np.zeros((w,h), int)
+		chars = np.zeros((w,h)).astype('int')
+		fgcolors = np.zeros((w,h,3))
+		bgcolors = np.zeros((w,h,3))
+
+		prev = None
+		for x, row in enumerate(map):
+			for y, cell in enumerate(row):
+				res = chain.get_next(prev)
+				char, fgcolor, bgcolor = self.terrain_registry.get_display(int(res))
+				if x % 2 == 1:
+					y = len(row) - y - 1
+				map[x,y] = int(res)
+				chars[x,y] = char
+				fgcolors[x,y] = fgcolor
+				bgcolors[x,y] = bgcolor
+				prev = res
+		return map, chars, fgcolors, bgcolors
+
 
 
 class Map(object):
@@ -52,7 +98,7 @@ class Map(object):
 				object.bump(other)
 
 	def interact(self, a, bs):
-		print 'interacting with:', bs
+		#print 'interacting with:', bs
 		for b in bs:
 			a.interact(b)
 
@@ -86,7 +132,7 @@ class Map(object):
 			# calculate the deltas for each step
 			line = list(libs.bresenham.line(0,0, dx,dy, 0))
 			line = [(bx-ax, by-ay) for (ax,ay), (bx,by) in zip(line,line[1:])]
-			print line
+			#print line
 			for x,y in line:
 				if self.move(object, x,y, update_cb) != (x,y):
 					break
@@ -247,7 +293,7 @@ class FovCache(object):
 			plen = tc.dijkstra_size(pmap)
 			x,y = tc.dijkstra_get(pmap, plen-2)
 			dx,dy = x-ox, y-oy
-		print 'dijkstra step: %d,%d' % (dx,dy)
+		#print 'dijkstra step: %d,%d' % (dx,dy)
 		return dx,dy
 
 
@@ -277,11 +323,13 @@ class TerrainInfo(object):
 		transparent = bool(transparent)
 		return type(name, (cls,), dict(char=char, passable=passable, transparent=transparent,fg=fg,bg=bg,prob=prob))
 
+import patches.yaml_omap_patch
 class TerrainRegistry(object):
 	def __init__(self):
 		self.id = 0
 		self.registry = {}
 		self.names = {}
+		self.types = {}
 
 	def get_terrain(self, id):
 		ter = self.registry[id]
@@ -301,19 +349,24 @@ class TerrainRegistry(object):
 		return types, probs
 
 
-	def register(self, ter):
+	def register(self, ter, classes):
 		self.id += 1
 		self.registry[self.id] = ter
 		self.names[ter.__name__] = ter
+		for klass in classes:
+			self.types.setdefault(klass, []).append(ter)
 		return ter
 
-	def new_terrain(self, name, char,
-		passable=False, transparent=False, fg=(255,255,255), bg=(0,0,0), prob=1
-	):
+	def new_terrain(self, name, char, passable=False, transparent=False, fg=(255,255,255), bg=(0,0,0), prob=1, classes=('open',)):
 		ter = TerrainInfo.make_terrain(name, char, passable, transparent, fg,bg, prob=prob)
-		return self.register(ter)
 
-	def load_from_file(self, fn, loader=yaml.safe_load):
+		classes = set(classes)
+		if not passable: classes.add('blocks_movement')
+		if not transparent: classes.add('blocks_sight')
+
+		return self.register(ter, classes)
+
+	def load_from_file(self, fn, loader=yaml.load):
 		with open(fn) as f:
 			values = loader(f)
 		for name, terrain in values.viewitems():

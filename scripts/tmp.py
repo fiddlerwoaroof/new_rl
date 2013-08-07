@@ -34,8 +34,7 @@ class MarkovChain(object):
 
 	def calc_prob(self):
 		for idx, row in enumerate(self.counts):
-			if row.sum() != 0:
-				self.probs[idx] = row / row.sum()
+			self.probs[idx] = row / row.sum()
 		return self.probs
 
 	def get_prob(self, l1,l2=None):
@@ -52,10 +51,7 @@ class MarkovChain(object):
 		self = object.__new__(cls)
 		d = fil.read()
 		if bzip2:
-			d = bz2.decompress(d)
-		d = yaml.load(d)
-		self.lookup = d['key']
-		self.probs = d['data']
+			d = bz2.decompress(self.lookup)
 		d = yaml.load(d)
 		self.lookup = d['key']
 		self.probs = d['data']
@@ -65,9 +61,7 @@ class MarkovChain(object):
 	def to_yml(self, fil):
 		yaml.dump({'data':self.probs, 'key':self.lookup, 'counts':self.counts}, fil)
 
-	def get_next(self, prev=None):
-		if prev is None:
-			prev = numpy.random.choice(list(self.lookup.keys()))
+	def get_next(self, prev):
 		choices = sorted(self.lookup.keys(), key=lambda x:self.lookup[x])
 		probabilities = self.get_prob(prev)
 		return numpy.random.choice(choices, p=probabilities)
@@ -83,36 +77,36 @@ class MarkovChain(object):
 		word.pop()
 		return ''.join(word)
 
+if os.path.exists('markov.yml.bz2'):
+	with open('markov.yml.bz2', 'rb') as f:
+		a = MarkovChain.from_yml(f)
+elif os.path.exists('markov.yml'):
+	with open('markov.yml', 'rb') as f:
+		a = MarkovChain.from_yml(f, False)
+else:
+	a = MarkovChain((200,200)) 
+	with open('llnames') as f:
+		for l in f:
+			l = l.strip()
+			count, word = l.split()
+			count = int(count)
+			word = list(word)
+			word.append('EOF')
+			for ___ in range(count):
+				for l1,l2 in zip(word,word[1:]):
+					a.check_lookup(l1)
+					a.check_lookup(l2)
+					a.inc_count(l1,l2)
+
+	a.calc_prob()
+
+	with open('markov.yml', 'w') as f:
+		a.to_yml(f)
+
+	print('dumped')
+
+
 if __name__ == '__main__':
-	if os.path.exists('markov.yml.bz2'):
-		with open('markov.yml.bz2', 'rb') as f:
-			a = MarkovChain.from_yml(f)
-	elif os.path.exists('markov.yml'):
-		with open('markov.yml', 'rb') as f:
-			a = MarkovChain.from_yml(f, False)
-	else:
-		a = MarkovChain((200,200))
-		with open('llnames') as f:
-			for l in f:
-				l = l.strip()
-				count, word = l.split()
-				count = int(count)
-				word = list(word)
-				word.append('EOF')
-				for ___ in range(count):
-					for l1,l2 in zip(word,word[1:]):
-						a.check_lookup(l1)
-						a.check_lookup(l2)
-						a.inc_count(l1,l2)
-
-		a.calc_prob()
-
-		with open('markov.yml', 'w') as f:
-			a.to_yml(f)
-
-		print('dumped')
-
-
 	import unicodedata
 	import unidecode
 

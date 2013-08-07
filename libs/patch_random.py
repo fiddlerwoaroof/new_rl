@@ -38,7 +38,6 @@ class MyRand(random.Random):
     if a is None:
       import time
       a = time.time() * 10000
-    print a
     numpy.random.seed(int(a))
     self.gauss_next = None
   def setstate(self, state):

@@ -21,13 +21,13 @@ class Overlay(object):
 		return self.x, self.y
 	def __init__(self, x,y, map):
 		super(Overlay, self).__init__()
-		print self.handled_events
+		#print self.handled_events
 		self.events = collections.OrderedDict()
 		self.event_results = {}
 		self.x = x
 		self.y = y
 		self.map = map
-		print 'self.__class__', self.__class__, 'handled_events', self.__class__.handled_events, id(self.__class__.handled_events)
+		#print 'self.__class__', self.__class__, 'handled_events', self.__class__.handled_events, id(self.__class__.handled_events)
 		for key, value in self.handled_events.viewitems():
 			self.events.setdefault(key, []).append(getattr(self.__class__, value))
 
@@ -43,7 +43,7 @@ class Overlay(object):
 	def trigger_event(self, event, *args, **kw):
 		self.event_results[event] = []
 		for cb in self.events.get(event, []):
-			print 'triggering:', event, args, kw
+			#print 'triggering:', event, args, kw
 			result = cb(self, *args, **kw)
 			self.event_results[event].append(result)
 			result = result is None or result # if the event returns a false value besides None, break
@@ -63,7 +63,7 @@ class Overlay(object):
 			elif any(cls.handled_events is getattr(base, 'handled_events', []) for base in cls.__bases__):
 				cls.handled_events = cls.handled_events.copy()
 			cls.handled_events[event] = cb_name
-			print 'events for class', cls, cls.handled_events
+			#print 'events for class', cls, cls.handled_events
 			return cls
 		return _inner
 
@@ -91,7 +91,7 @@ class Actor(Overlay):
 		self.repeated_actions = {}
 
 	def add_repeated_action(self, time, action, *args, **kw):
-		print 'adding action', action, args, kw
+		#print 'adding action', action, args, kw
 		self.repeated_actions.setdefault(time, []).append( (action, args, kw) )
 
 	def update_pos(self, dx,dy):
@@ -99,7 +99,7 @@ class Actor(Overlay):
 		self.y += dy
 
 	def move(self, dx, dy):
-		print 'moving'
+		#print 'moving'
 		return self.map.move(self, dx,dy, self.update_pos)
 
 
@@ -114,11 +114,11 @@ class Actor(Overlay):
 			ractions = {}
 			for nleft, actions in self.repeated_actions.items():
 				for (action,args,kwargs) in actions:
-					print action,args,kwargs
+					#print action,args,kwargs
 					action(*args, **kwargs)
 					if nleft > 1:
 						ractions.setdefault(nleft-1, []).append( (action,args,kwargs) )
-				print ractions
+				#print ractions
 			self.repeated_actions = ractions
 		return result
 
@@ -128,7 +128,7 @@ class Actor(Overlay):
 		return self.adventurer.state < 2 #TODO: implement factions
 
 	def bump(self, other):
-		print '%s bumped %s' % (type(self).__name__, type(other).__name__)
+		#print '%s bumped %s' % (type(self).__name__, type(other).__name__)
 		if isinstance(other, Actor) and other.ishostile(self):
 			self.trigger_event('attack', other)
 			self.adventurer.attack(other.adventurer)
@@ -152,7 +152,7 @@ class Actor(Overlay):
 			self.adventurer.attack(other.adventurer)
 
 	def bumped_by(self, other):
-		print '%s was bumped by %s' % (type(self).__name__, type(other).__name__)
+		pass #print '%s was bumped by %s' % (type(self).__name__, type(other).__name__)
 
 import random
 class AIActor(Actor):
@@ -160,11 +160,11 @@ class AIActor(Actor):
 		if self.map.is_visible(self.pos):
 			self.map.move_toward_origin(self, self.update_pos)
 		else:
-			print 'wiggly %s' % self.adventurer.name
+			#print 'wiggly %s' % self.adventurer.name
 			self.move(random.choice([-1,0,1]), random.choice([-1,0,1]))
 
 	def attacked_by(self, other):
-		print 'ouch'
+		pass #print 'ouch'
 
 @Overlay.add_event('picked_up',  'picked_up_by')
 @Overlay.add_event('bumped',  'bumped_by')
