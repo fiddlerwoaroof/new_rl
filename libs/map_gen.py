@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy as np
 import random
 import math
@@ -15,8 +16,16 @@ class Room(object):
 	def dim(self, v):
 		self.w, self.h = v
 
+	def get_abs_pos(self, x,y):
+		if x >= 0: x += self.x
+		else: x += self.x + self.w
+		if y >= 0: y += self.y
+		else: y += self.y + self.h
+		return x,y
+
 	def __init__(self, x,y, w,h, wall_thickness=1):
 		'''x,y are coordinates of the top-left corner'''
+		#print('wall_thickness:', wall_thickness, 'width:', w, 'height:', h, '2*wall_thickness + 1:', 2*wall_thickness + 1)
 		self.pos = x,y
 		self.dim = w,h
 		self.wall_thickness = wall_thickness
@@ -25,6 +34,7 @@ class Room(object):
 		self.make_doors()
 
 		if any(d < 2*wall_thickness + 1 for d in (w,h)):
+			#print('wall_thickness:', wall_thickness, 'width:', self.w, 'height:', self.h, '2*wall_thickness + 1:', 2*wall_thickness + 1)
 			raise ValueError('no empty space')
 
 	def make_doors(self):
@@ -46,9 +56,10 @@ class Room(object):
 	def place(self, target):
 		room = self.generate()
 
-		print target[self.x:self.x+self.w,self.y:self.y+self.h],'\n', room
+		#print(target[self.x:self.x+self.w,self.y:self.y+self.h],'\n', room)
 		target[self.x:self.x+self.w,self.y:self.y+self.h] = room
 		return target
+
 
 HORIZONTAL = 0
 VERTICAL = 1
@@ -56,27 +67,47 @@ VERTICAL = 1
 def minmax(a,b):
 	return min(a,b), max(a,b)
 
+class WalkInRect(object):
+	def __init__(self, start, goal):
+		self.start = start
+		self.goal = goal
+		self.x, self.y = start
+		self.steps = [start]
+	def __iter__(self):
+		return self
+	def next(self):
+		if (self.x, self.y) == self.goal: raise StopIteration
+		sx,sy = self.x, self.y
+		gx,gy = self.goal
+		dx = gx-sx
+		if sx != gx: dx /= abs(dx)
+		dy = gy-sy
+		if sy != gy: dy /= abs(dy)
+
+		stx = random.choice([0,dx])
+		sty = dy if stx == 0 else 0
+
+		self.x += stx
+		self.y += sty
+		self.steps.append((self.x, self.y))
+		return self.x, self.y
+
+
+
 class Corridor(object):
 	def __init__(self, start, end):
 		sx,sy = start
 		ex,ey = end
+		start = sx,sy
+		end = ex,ey
 		self.length = abs(sx-ex) + abs(sy-ey)
 		self.poses = []
 
 		if ex-sx == 0: self.poses.extend((sx, y) for y in range(sy,ey))
 		if ey-sy == 0: self.poses.extend((x, sy) for x in range(sx,ex))
 		else:
-			meds = []
-			curx, cury = start
-			motion = True
-			while (curx, cury) != end:
-				meds.append( (curx,cury) )
-				if bool(random.randrange(2)):
-					motion = not motion
-				tx,ty = curx if motion else ex+1,cury if not motion else ey+1
-				curx, cury = self.rand_between( (curx,cury), (tx,ty) )
-			for a,b in zip(meds, meds[1:]):
-				self.poses.extend(self.fill_line(a,b))
+			for x in WalkInRect(start, end):
+				self.poses.append(x)
 
 	def place(self, grid, skip_first=False):
 		poses = self.poses[1:] if skip_first else self.poses
@@ -108,19 +139,22 @@ class Corridor(object):
 		ax, ay = a
 		bx, by = b
 
+		if bx != ax: xsign = (bx-ax)/abs(bx-ax)
+		if by != ay: ysign = (by-ay)/abs(by-ay)
+
 		x = ax
 		if ax != bx:
 			xmin, xmax = minmax(ax,bx)
-			if xmax - xmin > 8:
-				xmax = xmin + int( (xmax-xmin)/4 )
-			x = random.randrange(xmin,xmax)
+			#if xmax - xmin > 8:
+				#xmax = xmin + xsign*int( (xmax-xmin)/4 )
+			x = random.randrange(ax, bx, step=xsign)
 
 		y = ay
 		if ay != by:
 			ymin, ymax = minmax(ay,by)
-			if ymax - ymin > 8:
-				ymax = ymin + int( (ymax-ymin)/4 )
-			y = random.randrange(ymin, ymax)
+			#if ymax - ymin > 8:
+				#ymax = ymin + ysign*int( (ymax-ymin)/4 )
+			y = random.randrange(ay, by, step=ysign)
 		return x,y
 
 
@@ -161,6 +195,8 @@ class RoomTest(unittest.TestCase):
 			np.testing.assert_array_equal(room.generate(), target)
 
 class Rect(object):
+	def __repr__(self):
+		return 'Rect(%r, %r)' % (self.tl, self.br)
 	@property
 	def tl(self): return self.lx, self.ty
 	@tl.setter
@@ -173,10 +209,12 @@ class Rect(object):
 
 	@property
 	def w(self):
+		#print('tl:', self.tl, 'br:', self.br, 'rx:', self.rx, 'lx:', self.lx)
 		return self.rx - self.lx
 
 	@property
 	def h(self):
+		#print('tl:', self.tl, 'br:', self.br, 'by:', self.by, 'ty:', self.ty)
 		return self.by - self.ty
 
 	def __init__(self, tl, br):
@@ -197,7 +235,10 @@ class Rect(object):
 		return x,y
 
 	def __add__(self, other):
-		return Rect(self.tl, other.br)
+		tl = map(min, zip(self.tl, other.tl))
+		br = map(max, zip(self.br, other.br))
+
+		return Rect(tl, br)
 
 class Tile(object):
 	@property
@@ -206,6 +247,7 @@ class Tile(object):
 	def dim(self, v): self.w, self.h = v
 
 	def __init__(self, w,h, num_rooms):
+		self.doors = []
 		self.num_rooms = num_rooms
 		self.dim = w,h
 		if w < 12 or h < 12: raise ValueError('Tile too small')
@@ -232,11 +274,22 @@ class Tile(object):
 		self.map_items = []
 		for x in self.sectors:
 			rx,ry = x.get_abs_coord((0,0))
-			self.map_items.append(Room(rx,ry, x.w-2, x.h-2))
+			#print(x, 'rx:', rx, 'ry:', ry, 'width:', x.w-2, 'height:', x.h-2)
+			w = 3
+			if x.w > 7: w = random.randrange(5,x.w-2)
+			h = 3
+			if x.h > 7: w = random.randrange(5,x.h-2)
+			self.map_items.append(Room(rx+1,ry+1, w,h))
+			self.doors.extend(self.map_items[-1].doors)
+		for x,x1 in zip(self.map_items[:], self.map_items[1:]):
+			doors = sorted([(x.get_abs_pos(*a),x1.get_abs_pos(*b)) for a in x.doors for b in x1.doors], key=lambda ((a,b),(c,d)): ((a-c)**2+(b-d)**2)**0.5)
+			print(doors)
+			self.map_items.append(Corridor(*doors[0]))
+
 
 	def place(self, grid, pos=(0,0)): # NOTE: pos ignored for now
 		for item in self.map_items:
-			print item.pos, item.dim
+			#print(item.pos, item.dim)
 			grid = item.place(grid)
 		return grid
 
@@ -264,4 +317,11 @@ class Tile(object):
 			#np.testing.assert_array_equal(room.place(), target)
 
 if __name__ == '__main__':
-	unittest.main()
+	#unittest.main()
+	a = Tile(20,20, random.randrange(1,5))
+	b = np.ones(a.dim).astype('int')*3
+	a.place(b)
+	for row in b:
+		for cell in row:
+			print([' ', '#', 'x', '!'][cell], end='')
+		print()

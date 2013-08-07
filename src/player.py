@@ -37,7 +37,7 @@ class Player(libs.overlay.Actor):
 
 	@trigger_update
 	def attack(self, *a, **kw):
-		pass #print 'attack'
+		print 'attack'
 
 	@trigger_update
 	def move(self, dx, dy):

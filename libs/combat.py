@@ -55,7 +55,7 @@ class Adventurer(object):
 
 	@property
 	def readable_state(self):
-		return ['healthy', 'wounded', 'knocked out'][self.state if self.state < 3 else 2]
+		return ['healthy', 'wounded', 'knocked out'][(0 if self.state < 0 else self.state) if self.state < 3 else 2]
 
 	with file('data/markov.yml') as f:
 		name_gen = markov.MarkovChain.from_yml(f, False)
@@ -65,7 +65,6 @@ class Adventurer(object):
 		name = unidecode.unidecode(cls.name_gen.new_word())
 		race = races.Race.random_race()
 		attr = Attributes.randomize(stat_sum)
-		print attr
 		return cls(name, race, attr)
 
 	@classmethod
