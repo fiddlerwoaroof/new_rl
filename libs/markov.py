@@ -34,7 +34,8 @@ class MarkovChain(object):
 
 	def calc_prob(self):
 		for idx, row in enumerate(self.counts):
-			self.probs[idx] = row / row.sum()
+			if row.sum() != 0:
+				self.probs[idx] = row / row.sum()
 		return self.probs
 
 	def get_prob(self, l1,l2=None):
@@ -61,7 +62,9 @@ class MarkovChain(object):
 	def to_yml(self, fil):
 		yaml.dump({'data':self.probs, 'key':self.lookup, 'counts':self.counts}, fil)
 
-	def get_next(self, prev):
+	def get_next(self, prev=None):
+		if prev is None:
+			prev = numpy.random.choice(list(self.lookup.keys()))
 		choices = sorted(self.lookup.keys(), key=lambda x:self.lookup[x])
 		probabilities = self.get_prob(prev)
 		return numpy.random.choice(choices, p=probabilities)
