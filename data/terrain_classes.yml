@@ -1,0 +1,13 @@
+!!omap
+- open:
+   passable: true
+   transparent: true
+- wall:
+   passable: true
+   transparent: false
+- window:
+   passable: true
+   transparent: false
+- door:
+   passable: true
+   transparent: false
